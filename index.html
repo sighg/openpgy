@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Residency Navigator</title>
+    <style>
+        /* General Styles */
+        body, html { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f9f9f9; }
+
+        /* Tab Navigation */
+        .tabs { overflow: hidden; background-color: #000; border-bottom: 1px solid #444; }
+        .tabs button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 18px; transition: background-color 0.3s; font-size: 16px; color: white; }
+        .tabs button:hover { background-color: #555; }
+        .tabs button.active { background-color: #007aff; }
+
+        /* Tab Content & Maps */
+        .tabcontent { display: none; padding: 20px 15px; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .map-container { width: 100%; height: 60vh; background-color: #e0e0e0; border-radius: 8px; }
+        #transfer-list { list-style-type: none; padding: 0; }
+        #transfer-list li { background-color: #fff; border: 1px solid #ddd; margin-top: -1px; padding: 12px; font-size: 16px; }
+
+        /* ## MODIFICATION: CSS for the new residency list ## */
+        #residency-list-container {
+            margin-top: 25px;
+            max-height: 400px; /* Set a max height for scrollability */
+            overflow-y: auto; /* Add a scrollbar if content exceeds max height */
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+        }
+        .residency-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .residency-item:last-child {
+            border-bottom: none;
+        }
+        .residency-item h3 {
+            margin: 0 0 5px 0;
+            font-size: 18px;
+            color: #333;
+        }
+        .residency-item p {
+            margin: 4px 0;
+            color: #555;
+            font-size: 14px;
+        }
+        .residency-item span {
+            font-weight: bold;
+            color: #000;
+        }
+        /* End of CSS Modification */
+
+        /* ANALOG Section */
+        #analog-login-container, #analog-portal-container { text-align: center; padding: 60px 20px; max-width: 400px; margin: auto; }
+        #analog-login-container h2, #analog-portal-container h2, .analog-page h2 { font-size: 24px; margin-bottom: 20px; }
+        .analog-input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        .analog-button { width: 100%; padding: 12px; border: none; background-color: #007aff; color: white; font-size: 16px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }
+        .analog-button:hover { background-color: #0056b3; }
+        #login-error { color: #ff3b30; font-weight: bold; display: none; margin-top: 10px; }
+        #analog-portal-container a { display: block; background-color: #fff; color: #007aff; padding: 20px; margin: 15px 0; text-decoration: none; font-size: 18px; border-radius: 8px; border: 1px solid #ddd; transition: all 0.2s; }
+        #analog-portal-container a:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .analog-page { display: none; padding: 40px 20px; text-align: center; }
+        .back-link { display: inline-block; margin-top: 30px; color: #007aff; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="tabs">
+        <button class="tablink" onclick="openTab(event, 'Home')" id="defaultOpen">All Positions</button>
+        <button class="tablink" onclick="openTab(event, 'Openings')">Current Openings</button>
+        <button class="tablink" onclick="openTab(event, 'Transfers')">Transfer Options</button>
+        <button class="tablink" onclick="openTab(event, 'ANALOG')">ANALOG</button>
+    </div>
+
+    <div id="Home" class="tabcontent">
+        <div id="map-all" class="map-container"></div>
+        
+        <div id="residency-list-container">
+            </div>
+        </div>
+
+    <div id="Openings" class="tabcontent">
+        <div id="map-openings" class="map-container"></div>
+    </div>
+
+    <div id="Transfers" class="tabcontent">
+        <h2>Transfer Possibilities</h2>
+        <ul id="transfer-list"></ul>
+    </div>
+
+    <div id="ANALOG" class="tabcontent">
+        <div id="analog-login-container">
+            <h2>ANALOG Portal Login</h2>
+            <input type="text" id="username" class="analog-input" placeholder="Username (try 'user')">
+            <input type="password" id="password" class="analog-input" placeholder="Password (try 'pass')">
+            <button onclick="login()" class="analog-button">Login</button>
+            <p id="login-error">Invalid credentials.</p>
+        </div>
+        <div id="analog-portal-container" style="display:none;">
+            <h2>ANALOG Portal</h2>
+            <a href="#" onclick="showAnalogPage('my-schedule'); return false;">My Schedule</a>
+            <a href="#" onclick="showAnalogPage('mashpod'); return false;">MASHPOD</a>
+        </div>
+        <div id="my-schedule" class="analog-page">
+            <h2>My Schedule</h2>
+            <p>Your personal schedule content would be displayed here.</p>
+            <a href="#" onclick="backToPortal(); return false;" class="back-link">← Back to Portal</a>
+        </div>
+        <div id="mashpod" class="analog-page">
+            <h2>MASHPOD</h2>
+            <p>Your MASHPOD content would be displayed here.</p>
+            <a href="#" onclick="backToPortal(); return false;" class="back-link">← Back to Portal</a>
+        </div>
+    </div>
+
+    <script>
+        // --- START OF CONFIGURATION ---
+        const apiKey = "YOUR_API_KEY_HERE";
+
+        // ## MODIFICATION: Expanded data for all residency locations ##
+        const allResidencyLocations = [
+            {
+                lat: 34.052235, lng: -118.243683,
+                name: 'General Hospital',
+                city: 'Los Angeles, CA',
+                category: 'Internal Medicine',
+                length: '3 years',
+                spots: 15
+            },
+            {
+                lat: 40.712776, lng: -74.005974,
+                name: 'Metropolitan Hospital',
+                city: 'New York, NY',
+                category: 'General Surgery',
+                length: '5 years',
+                spots: 8
+            },
+            {
+                lat: 41.878113, lng: -87.629799,
+                name: 'Windy City Medical Center',
+                city: 'Chicago, IL',
+                category: 'Pediatrics',
+                length: '3 years',
+                spots: 12
+            },
+            {
+                lat: 49.282729, lng: -123.120738,
+                name: 'Vancouver Health Sciences',
+                city: 'Vancouver, BC, Canada',
+                category: 'Family Medicine',
+                length: '2 years',
+                spots: 10
+            },
+            {
+                lat: 19.432608, lng: -99.133209,
+                name: 'Hospital de la Ciudad',
+                city: 'Mexico City, Mexico',
+                category: 'Emergency Medicine',
+                length: '4 years',
+                spots: 6
+            }
+        ];
+        // End of Data Modification
+
+        const pgyOpenings = [
+            { lat: 34.052235, lng: -118.243683, name: 'General Hospital - PGY-1 IM Opening', city: 'Los Angeles, CA' },
+            { lat: 43.653225, lng: -79.383186, name: 'Toronto General - PGY-2 Surgery', city: 'Toronto, ON, Canada' }
+        ];
+        const transferOptions = [
+            "Stanford University - Palo Alto, CA",
+            "Johns Hopkins Hospital - Baltimore, MD",
+            "Mayo Clinic - Rochester, MN",
+            "McGill University Health Centre - Montreal, QC, Canada"
+        ];
+        const correctUsername = "user";
+        const correctPassword = "pass";
+        // --- END OF CONFIGURATION ---
+
+        let mapAll, mapOpenings;
+
+        function initMaps() {
+            mapAll = new google.maps.Map(document.getElementById('map-all'), { center: { lat: 39.8283, lng: -98.5795 }, zoom: 4, mapId: 'RESIDENCY_MAP_ALL' });
+            addMarkers(allResidencyLocations, mapAll);
+            mapOpenings = new google.maps.Map(document.getElementById('map-openings'), { center: { lat: 39.8283, lng: -98.5795 }, zoom: 4, mapId: 'RESIDENCY_MAP_OPENINGS' });
+            addMarkers(pgyOpenings, mapOpenings, true);
+        }
+
+        function addMarkers(locations, map, isOpenings = false) {
+            locations.forEach(location => {
+                const marker = new google.maps.marker.AdvancedMarkerElement({ position: { lat: location.lat, lng: location.lng }, map: map, title: `${location.name}\n${location.city}` });
+            });
+        }
+        
+        // ## MODIFICATION: New function to build the residency list from the data ##
+        function populateResidencyList() {
+            const container = document.getElementById('residency-list-container');
+            container.innerHTML = ''; // Clear previous content
+
+            allResidencyLocations.forEach(loc => {
+                const item = document.createElement('div');
+                item.className = 'residency-item';
+
+                item.innerHTML = `
+                    <h3>${loc.name}</h3>
+                    <p><span>Location:</span> ${loc.city}</p>
+                    <p><span>Program:</span> ${loc.category}</p>
+                    <p><span>Length:</span> ${loc.length}</p>
+                    <p><span>Total Spots:</span> ${loc.spots}</p>
+                `;
+                container.appendChild(item);
+            });
+        }
+        // End of Function Modification
+        
+        function populateTransferList() {
+            const list = document.getElementById('transfer-list');
+            list.innerHTML = '';
+            transferOptions.forEach(option => {
+                const li = document.createElement('li');
+                li.textContent = option;
+                list.appendChild(li);
+            });
+        }
+
+        function openTab(evt, tabName) {
+            let i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablink");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        function login() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            const errorMsg = document.getElementById('login-error');
+            if (user === correctUsername && pass === correctPassword) {
+                document.getElementById('analog-login-container').style.display = 'none';
+                document.getElementById('analog-portal-container').style.display = 'block';
+                errorMsg.style.display = 'none';
+            } else {
+                errorMsg.style.display = 'block';
+            }
+        }
+        
+        function showAnalogPage(pageId) {
+            document.getElementById('analog-portal-container').style.display = 'none';
+            document.getElementById(pageId).style.display = 'block';
+        }
+
+        function backToPortal() {
+            document.querySelectorAll('.analog-page').forEach(p => p.style.display = 'none');
+            document.getElementById('analog-portal-container').style.display = 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById("defaultOpen").click();
+            populateTransferList();
+            populateResidencyList(); // ## MODIFICATION: Call the new function
+            
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMaps&libraries=marker&v=beta`;
+            script.async = true;
+            document.head.appendChild(script);
+        });
+    </script>
+</body>
+</html>
